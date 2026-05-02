@@ -4,27 +4,50 @@ const path = require('path');
 const manifest = JSON.parse(fs.readFileSync('./manifest.json', 'utf8'));
 
 const args = process.argv.slice(2);
-const tmdbId = args[0];
-const mediaType = args[1] || 'movie';
-const season = args[2] ? parseInt(args[2]) : undefined;
-const episode = args[3] ? parseInt(args[3]) : undefined;
+
+let providerFilter = null;
+let remainingArgs = args;
+
+const providerIndex = args.indexOf('--provider');
+if (providerIndex !== -1) {
+  providerFilter = args[providerIndex + 1];
+  remainingArgs = [...args.slice(0, providerIndex), ...args.slice(providerIndex + 2)];
+}
+
+const tmdbId = remainingArgs[0];
+const mediaType = remainingArgs[1] || 'movie';
+const season = remainingArgs[2] ? parseInt(remainingArgs[2]) : undefined;
+const episode = remainingArgs[3] ? parseInt(remainingArgs[3]) : undefined;
 
 if (!tmdbId) {
-  console.log('Usage: node test-all-providers.js <tmdbId> [mediaType] [season] [episode]');
-  console.log('Examples:');
-  console.log('  node test-all-providers.js 872585 movie');
-  console.log('  node test-all-providers.js 456 tv 1 5');
+  console.log('Usage:');
+  console.log('  node test-providers.js <tmdbId> [mediaType] [season] [episode]');
+  console.log('  node test-providers.js --provider <providerId> <tmdbId> [mediaType]');
+  console.log('\nExamples:');
+  console.log('  node test-providers.js 872585 movie');
+  console.log('  node test-providers.js 456 tv 1 5');
+  console.log('  node test-providers.js --provider xupalace 872585 movie');
   process.exit(1);
 }
 
-console.log(`Testing providers for TMDB ID: ${tmdbId}, Type: ${mediaType}${season ? `, S${season}E${episode}` : ''}\n`);
+console.log(`Testing providers for TMDB ID: ${tmdbId}, Type: ${mediaType}${season ? `, S${season}E${episode}` : ''}${providerFilter ? ` [Provider: ${providerFilter}]` : ''}\n`);
 
-const enabledProviders = manifest.scrapers.filter(p => p.enabled);
+let providersToTest;
+if (providerFilter) {
+  const provider = manifest.scrapers.find(p => p.id === providerFilter && p.enabled);
+  if (!provider) {
+    console.log(`Provider '${providerFilter}' not found or not enabled in manifest.json`);
+    process.exit(1);
+  }
+  providersToTest = [provider];
+} else {
+  providersToTest = manifest.scrapers.filter(p => p.enabled);
+}
 
 const results = [];
 let completed = 0;
 
-enabledProviders.forEach(provider => {
+providersToTest.forEach(provider => {
   const providerPath = path.resolve('./', provider.filename);
 
   if (!fs.existsSync(providerPath)) {
@@ -43,7 +66,7 @@ enabledProviders.forEach(provider => {
       : getStreams(tmdbId, mediaType);
 
     const timeoutMs = 30000;
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
     );
 
@@ -58,7 +81,7 @@ enabledProviders.forEach(provider => {
         if (err.message.includes('Cannot find module')) status = 'MISSING_DEP';
         else if (err.message.includes('not defined')) status = 'UNDEFINED_VAR';
         else if (err.message === 'TIMEOUT') status = 'TIMEOUT';
-        
+
         results.push({ id: provider.id, name: provider.name, status, streams: 0, error: err.message });
         console.log(`[${provider.id}] ${status}: ${err.message.split('\n')[0]}`);
       })
@@ -75,14 +98,14 @@ enabledProviders.forEach(provider => {
 });
 
 function checkDone() {
-  if (completed === enabledProviders.length) {
+  if (completed === providersToTest.length) {
     printSummary();
   }
 }
 
 function printSummary() {
   console.log('\n=== SUMMARY ===\n');
-  
+
   const grouped = {
     OK: results.filter(r => r.status === 'OK'),
     EMPTY: results.filter(r => r.status === 'EMPTY'),
