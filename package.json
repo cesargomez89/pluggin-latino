@@ -1,0 +1,15 @@
+{
+  "name": "pluggin-latino",
+  "version": "1.0.0",
+  "description": "Nuvio Latino streaming providers",
+  "main": "test-all-providers.js",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "crypto-js": "^4.2.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "node test-all-providers.js"
+  }
+}

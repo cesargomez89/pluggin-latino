@@ -1,14 +1,3 @@
-# Ignorar TODO por defecto
-/*
-
-# Excepciones (Archivos que SÍ queremos en GitHub)
-!manifest.json
-!providers/
-!providers/*.js
-!README.md
-!.gitignore
-!.gitattributes
-
 # Ignorar archivos de sistema y temporales (incluso si están en carpetas permitidas)
 .DS_Store
 Thumbs.db
@@ -19,3 +8,4 @@ NUVIO_GUIDE.md
 *.md
 NUVIO_GUIDE.md
 *.md
+node_modules
