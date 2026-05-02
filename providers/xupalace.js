@@ -67,18 +67,9 @@ var __async = (__this, __arguments, generator) => {
 var require_ua = __commonJS({
   "src/utils/ua.js"(exports2, module2) {
     var UA_POOL = [
-      // Android TV - Chromecast
-      "Mozilla/5.0 (Linux; Android 13; Chromecast) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      // Android TV - Generic TV
-      "Mozilla/5.0 (Linux; Android 11; AOSP; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.85 Safari/537.36",
-      // Android TV - Fire TV
-      "Mozilla/5.0 (X11; Linux armv7l) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.187 Safari/537.36",
-      // Android Mobile - Samsung
-      "Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      // Android Mobile - Pixel
-      "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      // Android Mobile - Samsung A series
-      "Mozilla/5.0 (Linux; Android 13; SM-A536B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      // Windows - Chrome 146 (Custom modern fingerprint)
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
     ];
     function getRandomUA() {
       const index = Math.floor(Math.random() * UA_POOL.length);
@@ -92,7 +83,7 @@ var require_ua = __commonJS({
 var require_http = __commonJS({
   "src/utils/http.js"(exports2, module2) {
     var { getRandomUA } = require_ua();
-    var DEFAULT_CHROME_UA = "Mozilla/5.0 (Linux; Android 13; Chromecast) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    var DEFAULT_CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     var sessionUA = null;
     function setSessionUA(ua) {
       sessionUA = ua;
@@ -106,9 +97,9 @@ var require_http = __commonJS({
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "Accept-Language": "es-US,es;q=0.9,en-US;q=0.8,en;q=0.7,es-419;q=0.6",
         "Connection": "keep-alive",
-        "sec-ch-ua": '"Not.A/Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-        "sec-ch-ua-mobile": "?1",
-        "sec-ch-ua-platform": '"Android"',
+        "sec-ch-ua": '"Chromium";v="137", "Not-A.Brand";v="24", "Google Chrome";v="137"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
         "Sec-Fetch-Dest": "document",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "none",
@@ -735,130 +726,98 @@ var require_tmdb = __commonJS({
 // src/resolvers/hlswish.js
 var require_hlswish = __commonJS({
   "src/resolvers/hlswish.js"(exports2, module2) {
-    var { getSessionUA } = require_http();
-    var { validateStream } = require_m3u8();
+    var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+    var DOMAIN_MAP = { "hglink.to": "vibuxer.com" };
     function unpackEval(payload, radix, symtab) {
       const chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
       const unbase = (str) => {
         let result = 0;
         for (let i = 0; i < str.length; i++) {
           const pos = chars.indexOf(str[i]);
-          if (pos === -1)
-            return NaN;
+          if (pos === -1) return NaN;
           result = result * radix + pos;
         }
         return result;
       };
       return payload.replace(/\b([0-9a-zA-Z]+)\b/g, (match) => {
         const idx = unbase(match);
-        if (isNaN(idx) || idx >= symtab.length)
-          return match;
+        if (isNaN(idx) || idx >= symtab.length) return match;
         return symtab[idx] && symtab[idx] !== "" ? symtab[idx] : match;
       });
     }
-    function resolve(url, signal = null) {
-      return __async(this, null, function* () {
+    function extractHlsUrl(unpacked, embedHost) {
+      const objMatch = unpacked.match(/\{[^{}]*"hls[234]"\s*:\s*"([^"]+)"[^{}]*\}/);
+      if (objMatch) {
         try {
-          const UA2 = getSessionUA();
-          const rawId = url.split("/").pop().replace(/\.html$/, "");
-          const urlObj = new URL(url);
-          const mirrors = [
-            `https://hanerix.com/e/${rawId}`,
-            `https://embedwish.com/e/${rawId}`,
-            `https://hglink.to/e/${rawId}`,
-            url,
-            `https://streamwish.to/e/${rawId}`,
-            `https://awish.pro/e/${rawId}`,
-            `https://strwish.com/e/${rawId}`,
-            `https://wishfast.top/e/${rawId}`,
-            `https://sfastwish.com/e/${rawId}`
-          ];
-          console.log(`[StreamWish] Race-Resolving v7.9.4: ${rawId} (${mirrors.length} mirrors)`);
-          const validResult = yield new Promise((resolveRace) => {
-            let resolved = false;
-            let pending = mirrors.length;
-            mirrors.forEach((mirror) => __async(this, null, function* () {
-              try {
-                const mirrorObj = new URL(mirror);
-                const mirrorOrigin = mirrorObj.origin;
-                const resp = yield fetch(mirror, {
-                  headers: { "Referer": mirror, "User-Agent": UA2 },
-                  signal
-                });
-                if (!resp.ok)
-                  throw new Error();
-                const html = yield resp.text();
-                let m3u8Url = null;
-                const hashMatch = html.match(/[0-9a-f]{32}/i);
-                if (hashMatch) {
-                  const hash = hashMatch[0];
-                  const dlUrl = `${mirrorOrigin}/dl?op=view&file_code=${rawId}&hash=${hash}&embed=1&referer=&adb=1&hls4=1`;
-                  const dlResp = yield fetch(dlUrl, {
-                    headers: { "User-Agent": UA2, "Referer": mirror, "X-Requested-With": "XMLHttpRequest" },
-                    signal
-                  });
-                  if (dlResp.ok) {
-                    const dlData = yield dlResp.text();
-                    const match = dlData.match(/https?:\/\/[^"']+\.m3u8[^"']*/);
-                    if (match)
-                      m3u8Url = match[0];
-                  }
-                }
-                if (!m3u8Url) {
-                  const packedMatch = html.match(/eval\(function\(p,a,c,k,e,[a-z]\)\{[\s\S]*?\}\s*\('([\s\S]+?)',\s*(\d+),\s*(\d+),\s*'([\s\S]+?)'\.split\('\|'\)/);
-                  if (packedMatch) {
-                    const unpacked = unpackEval(packedMatch[1], parseInt(packedMatch[2]), packedMatch[4].split("|"));
-                    const match = unpacked.match(/https?:\/\/[^"'\s]+\.m3u8[^"'\s]*/);
-                    if (match)
-                      m3u8Url = match[0];
-                  }
-                }
-                if (!m3u8Url) {
-                  const fileMatch = html.match(/file\s*:\s*["']([^"']+)["']/i);
-                  if (fileMatch)
-                    m3u8Url = fileMatch[1];
-                }
-                if (m3u8Url && !resolved) {
-                  resolved = true;
-                  m3u8Url = m3u8Url.replace(/\\/g, "");
-                  if (m3u8Url.startsWith("/"))
-                    m3u8Url = mirrorOrigin + m3u8Url;
-                  resolveRace({ url: m3u8Url, mirror });
-                }
-              } catch (e) {
-              } finally {
-                pending--;
-                if (pending === 0 && !resolved)
-                  resolveRace(null);
-              }
-            }));
-            setTimeout(() => {
-              if (!resolved) {
-                resolved = true;
-                resolveRace(null);
-              }
-            }, 3500);
-          });
-          if (!validResult)
-            return null;
-          const reqHeaders = {
-            "Referer": validResult.mirror,
-            "Origin": new URL(validResult.mirror).origin,
-            "User-Agent": UA2
-          };
-          const streamObj = { url: validResult.url, headers: reqHeaders };
-          const validation = yield validateStream(streamObj, signal);
-          const isLive = validation ? validation.verified : true;
-          const streamQuality = validation && validation.quality ? validation.quality : "Auto";
-          return {
-            url: validResult.url,
-            quality: streamQuality,
-            verified: isLive,
-            isReal: validation ? validation.isReal : false,
-            serverName: "StreamWish",
-            headers: reqHeaders
-          };
+          const normalized = objMatch[0].replace(/(\w+)\s*:/g, '"$1":');
+          const obj = JSON.parse(normalized);
+          const url = obj.hls4 || obj.hls3 || obj.hls2;
+          if (url) return url.startsWith("/") ? embedHost + url : url;
         } catch (e) {
+          const urlMatch = objMatch[0].match(/"hls[234]"\s*:\s*"([^"]+\.m3u8[^"]*)"/);
+          if (urlMatch) {
+            const url = urlMatch[1];
+            return url.startsWith("/") ? embedHost + url : url;
+          }
+        }
+      }
+      const m3u8Match = unpacked.match(/["']([^"']{30,}\.m3u8[^"']*)['"]/i);
+      if (m3u8Match) {
+        const url = m3u8Match[1];
+        return url.startsWith("/") ? embedHost + url : url;
+      }
+      return null;
+    }
+    function resolve(embedUrl) {
+      return __async(this, null, function* () {
+        var _a;
+        try {
+          let fetchUrl2 = embedUrl;
+          for (const [from, to] of Object.entries(DOMAIN_MAP)) {
+            if (fetchUrl2.includes(from)) { fetchUrl2 = fetchUrl2.replace(from, to); break; }
+          }
+          const embedHost = ((_a = fetchUrl2.match(/^(https?:\/\/[^/]+)/)) == null ? void 0 : _a[1]) || "https://hlswish.com";
+          console.log(`[HLSWish] Resolviendo: ${embedUrl}`);
+          if (fetchUrl2 !== embedUrl) console.log(`[HLSWish] → Mapped to: ${fetchUrl2}`);
+          const resp = yield fetch(fetchUrl2, {
+            headers: { "User-Agent": UA, "Referer": "https://embed69.org/", "Origin": "https://embed69.org", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "es-MX,es;q=0.9" },
+            redirect: "follow"
+          });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = yield resp.text();
+          const fileMatch = data.match(/file\s*:\s*["']([^"']+)["']/i);
+          if (fileMatch) {
+            let url = fileMatch[1];
+            if (url.startsWith("/")) url = embedHost + url;
+            if (url.includes("vibuxer.com/stream/")) {
+              console.log(`[HLSWish] Siguiendo redirect: ${url.substring(0, 80)}...`);
+              try {
+                const redirectResp = yield fetch(url, { headers: { "User-Agent": UA, "Referer": embedHost + "/" }, redirect: "follow" });
+                const finalUrl = redirectResp.url;
+                if (finalUrl && finalUrl.includes(".m3u8")) url = finalUrl;
+              } catch (e) {}
+            }
+            console.log(`[HLSWish] URL encontrada: ${url.substring(0, 80)}...`);
+            return { url, quality: "1080p", headers: { "User-Agent": UA, "Referer": embedHost + "/" } };
+          }
+          const packMatch = data.match(/eval\(function\(p,a,c,k,e,[a-z]\)\{[^}]+\}\s*\('([\s\S]+?)',\s*(\d+),\s*(\d+),\s*'([\s\S]+?)'\.split\('\|'\)/);
+          if (packMatch) {
+            const unpacked = unpackEval(packMatch[1], parseInt(packMatch[2]), packMatch[4].split("|"));
+            const url = extractHlsUrl(unpacked, embedHost);
+            if (url) {
+              console.log(`[HLSWish] URL encontrada: ${url.substring(0, 80)}...`);
+              return { url, quality: "1080p", headers: { "User-Agent": UA, "Referer": embedHost + "/" } };
+            }
+          }
+          const rawM3u8 = data.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
+          if (rawM3u8) {
+            console.log(`[HLSWish] URL encontrada: ${rawM3u8[0].substring(0, 80)}...`);
+            return { url: rawM3u8[0], quality: "1080p", headers: { "User-Agent": UA, "Referer": embedHost + "/" } };
+          }
+          console.log("[HLSWish] No se encontró URL");
+          return null;
+        } catch (err) {
+          console.log(`[HLSWish] Error: ${err.message}`);
           return null;
         }
       });
@@ -871,155 +830,143 @@ var require_hlswish = __commonJS({
 var require_aes_gcm = __commonJS({
   "src/utils/aes_gcm.js"(exports2, module2) {
     var _CryptoJS = typeof CryptoJS !== "undefined" ? CryptoJS : null;
-    function parseB64(b64) {
-      if (!b64 || !_CryptoJS)
-        return null;
-      try {
-        const normalized = b64.replace(/-/g, "+").replace(/_/g, "/");
-        return _CryptoJS.enc.Base64.parse(normalized);
-      } catch (e) {
-        return null;
-      }
+    function b64urlToWordArray(s) {
+      s = s.replace(/-/g, "+").replace(/_/g, "/");
+      const pad = (4 - s.length % 4) % 4;
+      return _CryptoJS.default.enc.Base64.parse(s + "=".repeat(pad));
     }
-    function decryptGCM(keyWA, ivWA, ciphertextWithTagWA) {
-      try {
-        if (!keyWA || !ivWA || !ciphertextWithTagWA || !_CryptoJS)
-          return null;
-        const tagSizeWords = 4;
-        const ciphertextWords = ciphertextWithTagWA.words.slice(0, ciphertextWithTagWA.words.length - tagSizeWords);
-        const ciphertextWA = _CryptoJS.lib.WordArray.create(
-          ciphertextWords,
-          ciphertextWithTagWA.sigBytes - 16
-        );
-        let counterWA = ivWA.clone();
-        counterWA.concat(_CryptoJS.lib.WordArray.create([2], 4));
-        const decrypted = _CryptoJS.AES.decrypt(
-          { ciphertext: ciphertextWA },
-          keyWA,
-          {
-            iv: counterWA,
-            mode: _CryptoJS.mode.CTR,
-            padding: _CryptoJS.pad.NoPadding
-          }
-        );
-        return decrypted.toString(_CryptoJS.enc.Utf8);
-      } catch (e) {
-        console.error("[AES-GCM] Error:", e.message);
-        return null;
+    function wordArrayToBytes(wa) {
+      const words = wa.words;
+      const sigBytes = wa.sigBytes;
+      const bytes = new Uint8Array(sigBytes);
+      for (let i = 0; i < sigBytes; i++) {
+        bytes[i] = words[i >>> 2] >>> 24 - i % 4 * 8 & 255;
       }
+      return bytes;
     }
-    function decryptByse(playback) {
+    function bytesToWordArray(bytes) {
+      const words = [];
+      for (let i = 0; i < bytes.length; i += 4) {
+        words.push((bytes[i] || 0) << 24 | (bytes[i + 1] || 0) << 16 | (bytes[i + 2] || 0) << 8 | (bytes[i + 3] || 0));
+      }
+      return _CryptoJS.default.lib.WordArray.create(words, bytes.length);
+    }
+    function incCounter(block) {
+      const b = new Uint8Array(block);
+      for (let i = 15; i >= 12; i--) { b[i]++; if (b[i] !== 0) break; }
+      return b;
+    }
+    function aesGcmDecrypt(key32bytes, iv12bytes, ciphertextBytes) {
       try {
-        if (!playback || !playback.key_parts || !playback.payload || !playback.iv || !_CryptoJS)
-          return null;
-        let keyWA = parseB64(playback.key_parts[0]);
-        for (let i = 1; i < playback.key_parts.length; i++) {
-          const part = parseB64(playback.key_parts[i]);
-          if (part)
-            keyWA.concat(part);
+        const j0 = new Uint8Array(16);
+        j0.set(iv12bytes, 0);
+        j0[15] = 1;
+        let counter = incCounter(j0);
+        const keyWA = bytesToWordArray(key32bytes);
+        const result = new Uint8Array(ciphertextBytes.length);
+        for (let offset = 0; offset < ciphertextBytes.length; offset += 16) {
+          const blockSize = Math.min(16, ciphertextBytes.length - offset);
+          const counterWA = bytesToWordArray(counter);
+          const encrypted = _CryptoJS.default.AES.encrypt(counterWA, keyWA, { mode: _CryptoJS.default.mode.ECB, padding: _CryptoJS.default.pad.NoPadding });
+          const keystreamBytes = wordArrayToBytes(encrypted.ciphertext);
+          for (let i = 0; i < blockSize; i++) { result[offset + i] = ciphertextBytes[offset + i] ^ keystreamBytes[i]; }
+          counter = incCounter(counter);
         }
-        const ivWA = parseB64(playback.iv);
-        const ciphertextWithTagWA = parseB64(playback.payload);
-        return decryptGCM(keyWA, ivWA, ciphertextWithTagWA);
+        return result;
       } catch (e) {
-        console.error("[Byse] Failed:", e.message);
+        console.log("[Filemoon] AES-GCM error:", e.message);
         return null;
       }
     }
-    module2.exports = { decryptByse };
+    module2.exports = { aesGcmDecrypt, b64urlToWordArray, wordArrayToBytes, bytesToWordArray, incCounter };
   }
 });
 
 // src/resolvers/filemoon.js
 var require_filemoon = __commonJS({
   "src/resolvers/filemoon.js"(exports2, module2) {
-    var { decryptByse } = require_aes_gcm();
-    var { getSessionUA } = require_http();
-    var UA_CHROME = getSessionUA();
-    function unpack(p, a, c, k, e, d) {
-      while (c--)
-        if (k[c])
-          p = p.replace(new RegExp("\\b" + c.toString(a) + "\\b", "g"), k[c]);
-      return p;
+    var _CryptoJS = typeof CryptoJS !== "undefined" ? CryptoJS : null;
+    var { b64urlToWordArray, wordArrayToBytes, bytesToWordArray, aesGcmDecrypt } = require_aes_gcm();
+    var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+    function normalizeResolution(width, height) {
+      if (width >= 3840 || height >= 2160) return "4K";
+      if (width >= 1920 || height >= 1080) return "1080p";
+      if (width >= 1280 || height >= 720) return "720p";
+      if (width >= 854 || height >= 480) return "480p";
+      return "360p";
     }
-    function resolve(url, signal = null) {
-      return __async(this, null, function* () {
-        var _a, _b, _c, _d;
+    function detectQuality(m3u8Url, headers) {
+      return __async(this, arguments, function* (m3u8Url, headers_) {
         try {
-          const urlObj = new URL(url);
-          const hostname = urlObj.hostname;
-          const videoId = urlObj.pathname.split("/").filter((p) => !!p).pop();
-          if (!videoId)
-            return null;
-          console.log(`[Filemoon] TV-Resolving: ${videoId} Host: ${hostname}`);
-          try {
-            const playbackUrl = `https://${hostname}/api/videos/${videoId}/embed/playback`;
-            const response = yield fetch(playbackUrl, {
-              signal,
-              headers: {
-                "User-Agent": UA_CHROME,
-                "Referer": url,
-                "Origin": `https://${hostname}`,
-                "X-Embed-Parent": url
-              }
-            });
-            if (response.ok) {
-              const playbackData = yield response.json();
-              if (playbackData && playbackData.playback) {
-                const decrypted = decryptByse(playbackData.playback);
-                if (decrypted) {
-                  const data = decrypted.includes("{") ? JSON.parse(decrypted) : null;
-                  const directUrl = ((_b = (_a = data == null ? void 0 : data.sources) == null ? void 0 : _a[0]) == null ? void 0 : _b.url) || (data == null ? void 0 : data.url);
-                  if (directUrl) {
-                    try {
-                      const vCheck = yield fetch(directUrl, { method: "HEAD", headers: { "User-Agent": UA_CHROME } });
-                      if (vCheck.status === 404) {
-                        console.log("[Filemoon] \u274C URL de video caducada (404).");
-                        return null;
-                      }
-                    } catch (ve) {
-                    }
-                    return {
-                      url: directUrl,
-                      quality: ((_d = (_c = data == null ? void 0 : data.sources) == null ? void 0 : _c[0]) == null ? void 0 : _d.label) || "1080p",
-                      verified: true,
-                      serverName: "Filemoon",
-                      headers: { "User-Agent": UA_CHROME, "Referer": `https://${hostname}/`, "Origin": `https://${hostname}`, "x-embed-origin": "ww3.gnulahd.nu" }
-                    };
+          var res = yield fetch(m3u8Url, { headers: __spreadValues({ "User-Agent": UA }, headers_ || {}), redirect: "follow" });
+          var data = yield res.text();
+          if (!data.includes("#EXT-X-STREAM-INF")) {
+            var match = m3u8Url.match(/[_-](\d{3,4})p/);
+            return match ? match[1] + "p" : "1080p";
+          }
+          var bestHeight = 0, bestWidth = 0;
+          var lines = data.split("\n");
+          for (var i = 0; i < lines.length; i++) {
+            var m = lines[i].match(/RESOLUTION=(\d+)x(\d+)/);
+            if (m) { var w = parseInt(m[1]), h = parseInt(m[2]); if (h > bestHeight) { bestHeight = h; bestWidth = w; } }
+          }
+          return bestHeight > 0 ? normalizeResolution(bestWidth, bestHeight) : "1080p";
+        } catch (e) { return "1080p"; }
+      });
+    }
+    function resolve(embedUrl) {
+      return __async(this, null, function* () {
+        var _a, _b, _c;
+        console.log("[Filemoon] Resolviendo: " + embedUrl);
+        try {
+          var match = embedUrl.match(/\/(?:e|d)\/([a-z0-9]{12})/i);
+          if (!match) return null;
+          var id = match[1];
+          var playbackJson = yield fetch("https://filemooon.link/api/videos/" + id + "/embed/playback", { headers: { "User-Agent": UA, "Referer": embedUrl } }).then(function(r) { return r.json(); });
+          if (playbackJson.error) { console.log("[Filemoon] API error: " + playbackJson.error); return null; }
+          var pb = playbackJson.playback;
+          if (!pb || pb.algorithm !== "AES-256-GCM" || !pb.key_parts || pb.key_parts.length !== 2) { console.log("[Filemoon] Formato de cifrado no soportado"); return null; }
+          var k1 = wordArrayToBytes(b64urlToWordArray(pb.key_parts[0]));
+          var k2 = wordArrayToBytes(b64urlToWordArray(pb.key_parts[1]));
+          var rawKey = new Uint8Array(k1.length + k2.length);
+          rawKey.set(k1, 0); rawKey.set(k2, k1.length);
+          var key32 = rawKey.length === 32 ? rawKey : wordArrayToBytes(_CryptoJS.default.SHA256(bytesToWordArray(rawKey)));
+          var ivBytes = wordArrayToBytes(b64urlToWordArray(pb.iv));
+          var payloadBytes = wordArrayToBytes(b64urlToWordArray(pb.payload));
+          if (payloadBytes.length < 16) return null;
+          var ciphertext = payloadBytes.slice(0, -16);
+          var decrypted = aesGcmDecrypt(key32, ivBytes, ciphertext);
+          if (!decrypted) return null;
+          var decStr = "";
+          for (var i = 0; i < decrypted.length; i++) decStr += String.fromCharCode(decrypted[i]);
+          var inner = JSON.parse(decStr);
+          var m3u8Url = (_c = (_b = inner.sources) == null ? void 0 : _b[0]) == null ? void 0 : _c.url;
+          if (!m3u8Url) return null;
+          console.log("[Filemoon] URL encontrada: " + m3u8Url.substring(0, 80) + "...");
+          var finalUrl = m3u8Url, quality = "1080p";
+          if (m3u8Url.includes("master")) {
+            try {
+              var masterResp = yield fetch(m3u8Url, { headers: { "User-Agent": UA, "Referer": embedUrl } }).then(function(r) { return r.text(); });
+              var lines = masterResp.split("\n");
+              var bestHeight = 0, bestWidth = 0, bestUrl = m3u8Url;
+              for (var i2 = 0; i2 < lines.length; i2++) {
+                var line = lines[i2].trim();
+                if (line.startsWith("#EXT-X-STREAM-INF")) {
+                  var mRes = line.match(/RESOLUTION=(\d+)x(\d+)/);
+                  var w = mRes ? parseInt(mRes[1]) : 0, h = mRes ? parseInt(mRes[2]) : 0;
+                  for (var j = i2 + 1; j < i2 + 3 && j < lines.length; j++) {
+                    var urlLine = lines[j].trim();
+                    if (urlLine && !urlLine.startsWith("#") && h > bestHeight) { bestHeight = h; bestWidth = w; bestUrl = urlLine.startsWith("http") ? urlLine : new URL(urlLine, m3u8Url).toString(); break; }
                   }
                 }
               }
-            }
-          } catch (e) {
-            console.log(`[Filemoon] Shield Fall\xF3: ${e.message}`);
+              if (bestHeight > 0) { finalUrl = bestUrl; quality = normalizeResolution(bestWidth, bestHeight); console.log("[Filemoon] Mejor calidad: " + quality); }
+            } catch (e) { console.log("[Filemoon] No se pudo parsear master: " + e.message); }
           }
-          const resp = yield fetch(url, { headers: { "User-Agent": UA_CHROME, "Referer": urlObj.origin } });
-          const html1 = yield resp.text();
-          const evalMatch = html1.match(/eval\(function\(p,a,c,k,e,(?:d|\w+)\)\{[\s\S]+?\}\s*\(([\s\S]+?)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*'([\s\S]+?)'\.split/);
-          if (evalMatch) {
-            const unpacked = unpack(evalMatch[1], parseInt(evalMatch[2]), parseInt(evalMatch[3]), evalMatch[4].split("|"), 0, {});
-            const m3u8Match = unpacked.match(/sources\s*:\s*\[\s*\{\s*file\s*:\s*["']([^"']+)["']/i);
-            if (m3u8Match) {
-              return {
-                url: m3u8Match[1],
-                verified: true,
-                serverName: "Filemoon",
-                headers: {
-                  "User-Agent": UA_CHROME,
-                  "Referer": `https://${hostname}`,
-                  "Origin": `https://${hostname}`
-                }
-              };
-            }
-          }
-          return null;
-        } catch (error) {
-          console.error(`[Filemoon] Error: ${error.message}`);
-          return null;
-        }
+          return { url: finalUrl, quality: quality, headers: { "User-Agent": UA, "Referer": embedUrl, "Origin": "https://filemoon.sx" } };
+        } catch (error) { console.log("[Filemoon] Error: " + error.message); return null; }
       });
     }
-    module2.exports = { resolve };
     module2.exports = { resolve };
   }
 });
@@ -1027,117 +974,48 @@ var require_filemoon = __commonJS({
 // src/resolvers/voe.js
 var require_voe = __commonJS({
   "src/resolvers/voe.js"(exports2, module2) {
-    var { getSessionUA } = require_http();
-    var { validateStream } = require_m3u8();
-    function localAtob(input) {
-      if (!input)
-        return "";
-      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-      let str = String(input).replace(/=+$/, "").replace(/[\s\n\r\t]/g, "");
-      let output = "";
-      if (str.length % 4 === 1)
-        return "";
-      for (let bc = 0, bs, buffer, idx = 0; buffer = str.charAt(idx++); ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer, bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0) {
-        buffer = chars.indexOf(buffer);
-      }
-      return output;
+    var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+    function b64toString(str) {
+      try { return typeof atob !== "undefined" ? atob(str) : Buffer.from(str, "base64").toString("utf8"); } catch (e) { return null; }
     }
-    function resolve(url, signal = null) {
+    function voeDecode(ct, luts) {
+      try {
+        var rawLuts = luts.replace(/^\[|\]$/g, "").split("','").map(function(s) { return s.replace(/^'+|'+$/g, ""); });
+        var escapedLuts = rawLuts.map(function(i) { return i.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); });
+        var txt = "";
+        for (var i = 0; i < ct.length; i++) { var ch = ct[i], x = ch.charCodeAt(0); if (x > 64 && x < 91) x = (x - 52) % 26 + 65; else if (x > 96 && x < 123) x = (x - 84) % 26 + 97; txt += String.fromCharCode(x); }
+        for (var i2 = 0; i2 < escapedLuts.length; i2++) { txt = txt.replace(new RegExp(escapedLuts[i2], "g"), "_"); }
+        txt = txt.split("_").join("");
+        var decoded1 = b64toString(txt);
+        if (!decoded1) return null;
+        var step4 = "";
+        for (var i3 = 0; i3 < decoded1.length; i3++) step4 += String.fromCharCode((decoded1.charCodeAt(i3) - 3 + 256) % 256);
+        return b64toString(step4.split("").reverse().join(""));
+      } catch (e) { console.log("[VOE] voeDecode error:", e.message); return null; }
+    }
+    function fetchUrl(url, headers) { return __async(this, arguments, function* (url, headers_) { headers_ = headers_ || {}; return yield fetch(url, { method: "GET", headers: __spreadValues({ "User-Agent": UA, "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" }, headers_), redirect: "follow" }); }); }
+    function resolve(embedUrl) {
       return __async(this, null, function* () {
         try {
-          const currentUA = getSessionUA();
-          console.log(`[VOE] TV-Resolving: ${url}`);
-          const response = yield fetch(url, {
-            headers: { "User-Agent": currentUA },
-            signal
-          });
-          if (!response.ok)
-            return null;
-          const html = yield response.text();
-          if (html.includes("window.location.href") && html.length < 2e3) {
-            const rm = html.match(/window\.location\.href\s*=\s*['"]([^'"]+)['"]/i);
-            if (rm)
-              return resolve(rm[1]);
+          console.log("[VOE] Resolviendo: " + embedUrl);
+          var pageResp = yield fetchUrl(embedUrl, { Referer: embedUrl });
+          if (!pageResp.ok) throw new Error("HTTP " + pageResp.status);
+          var data = yield pageResp.text();
+          if (/permanentToken/i.test(data)) { var m2 = data.match(/window\.location\.href\s*=\s*'([^']+)'/i); if (m2) { console.log("[VOE] Permanent token redirect -> " + m2[1]); var r2 = yield fetchUrl(m2[1], { Referer: embedUrl }); if (r2.ok) data = yield r2.text(); } }
+          var rMain = data.match(/json">\s*\[\s*['"]([^'"]+)['"]\s*\]\s*<\/script>\s*<script[^>]*src=['"]([^'"]+)['"]/i);
+          if (rMain) {
+            var jsResp = yield fetchUrl(rMain[2].startsWith("http") ? rMain[2] : new URL(rMain[2], embedUrl).href, { Referer: embedUrl });
+            var jsData = jsResp.ok ? yield jsResp.text() : "";
+            var replMatch = jsData.match(/(\[(?:'[^']{1,10}'[\s,]*){4,12}\])/i) || jsData.match(/(\[(?:"[^"]{1,10}"[,\s]*){4,12}\])/i);
+            if (replMatch) { var decoded = voeDecode(rMain[1], replMatch[1]); if (decoded && (decoded.source || decoded.direct_access_url)) { var url = decoded.source || decoded.direct_access_url; console.log("[VOE] URL encontrada: " + url.substring(0, 80) + "..."); return { url: url, quality: "1080p", headers: { Referer: embedUrl } }; } }
           }
-          const jsonMatch = html.match(/<script type="application\/json">([\s\S]*?)<\/script>/);
-          if (jsonMatch) {
-            try {
-              const parsed = JSON.parse(jsonMatch[1].trim());
-              let encText = Array.isArray(parsed) ? parsed[0] : parsed;
-              if (typeof encText !== "string")
-                return null;
-              let decoded = encText.replace(/[a-zA-Z]/g, (c) => {
-                const code = c.charCodeAt(0);
-                const limit = c <= "Z" ? 90 : 122;
-                const shifted = code + 13;
-                return String.fromCharCode(limit >= shifted ? shifted : shifted - 26);
-              });
-              const noise = ["@$", "^^", "~@", "%?", "*~", "!!", "#&"];
-              for (const n of noise)
-                decoded = decoded.split(n).join("");
-              const b64_1 = localAtob(decoded);
-              if (!b64_1)
-                throw new Error("LocalAtob failed stage 1");
-              let shiftedStr = "";
-              for (let j = 0; j < b64_1.length; j++) {
-                shiftedStr += String.fromCharCode(b64_1.charCodeAt(j) - 3);
-              }
-              const reversed = shiftedStr.split("").reverse().join("");
-              const decrypted = localAtob(reversed);
-              if (!decrypted)
-                throw new Error("LocalAtob failed stage 2");
-              const data = JSON.parse(decrypted);
-              if (data && data.source) {
-                console.log(`[VOE] Success: ${data.source.substring(0, 50)}...`);
-                const reqHeaders = {
-                  "User-Agent": currentUA,
-                  "Referer": url
-                };
-                const streamObj = { url: data.source, headers: reqHeaders };
-                const validation = yield validateStream(streamObj, signal);
-                const isLive = validation ? validation.verified : true;
-                const streamQuality = validation && validation.quality ? validation.quality : "1080p";
-                return {
-                  url: data.source,
-                  quality: streamQuality,
-                  verified: isLive,
-                  isReal: validation ? validation.isReal : false,
-                  serverName: "VOE",
-                  headers: reqHeaders
-                };
-              }
-            } catch (ex) {
-              console.error(`[VOE] Decryption failed (QuickJS Match): ${ex.message}`);
-            }
-          }
-          const m3u8Match = html.match(/["'](https?:\/\/[^"']+?\.m3u8[^"']*?)["']/i);
-          if (m3u8Match) {
-            const fallbackUrl = m3u8Match[1];
-            const reqHeaders = {
-              "Referer": url,
-              "User-Agent": currentUA
-            };
-            const streamObj = { url: fallbackUrl, headers: reqHeaders };
-            const validation = yield validateStream(streamObj, signal);
-            const isLive = validation ? validation.verified : true;
-            const streamQuality = validation && validation.quality ? validation.quality : "1080p";
-            return {
-              url: fallbackUrl,
-              quality: streamQuality,
-              verified: isLive,
-              isReal: validation ? validation.isReal : false,
-              serverName: "VOE",
-              headers: reqHeaders
-            };
-          }
-          return null;
-        } catch (error) {
-          console.error(`[VOE] Error: ${error.message}`);
-          return null;
-        }
+          var re1 = /(?:mp4|hls)'\s*:\s*'([^']+)'/gi, re2 = /(?:mp4|hls)"\s*:\s*"([^"]+)"/gi, matches = [];
+          var m; while ((m = re1.exec(data)) !== null) matches.push(m); while ((m = re2.exec(data)) !== null) matches.push(m);
+          for (var i = 0; i < matches.length; i++) { var candidate = matches[i][1]; if (candidate) { var url = candidate; if (url.startsWith("aHR0")) { try { url = atob(url); } catch (e) {} } console.log("[VOE] URL encontrada (fallback): " + url.substring(0, 80) + "..."); return { url: url, quality: "1080p", headers: { Referer: embedUrl } }; } }
+          console.log("[VOE] No se encontró URL"); return null;
+        } catch (err) { console.log("[VOE] Error: " + err.message); return null; }
       });
     }
-    module2.exports = { resolve };
     module2.exports = { resolve };
   }
 });
@@ -1145,99 +1023,37 @@ var require_voe = __commonJS({
 // src/resolvers/vidhide.js
 var require_vidhide = __commonJS({
   "src/resolvers/vidhide.js"(exports2, module2) {
-    var { getSessionUA, getStealthHeaders } = require_http();
-    var { validateStream } = require_m3u8();
-    function unpackVidHide(script) {
+    var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+    function unpack(packed) {
       try {
-        const match = script.match(/eval\(function\(p,a,c,k,e,[rd]\)\{.*?\}\s*\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)/);
-        if (!match)
-          return null;
-        let [full, p, a, c, k] = match;
-        a = parseInt(a);
-        c = parseInt(c);
-        k = k.split("|");
-        const chars = "0123456789abcdefghijklmnopqrstuvwxyz";
-        const decode = (l, s) => {
-          let res = "";
-          while (l > 0) {
-            res = chars[l % s] + res;
-            l = Math.floor(l / s);
-          }
-          return res || "0";
-        };
-        const unpacked = p.replace(/\b\w+\b/g, (l) => {
-          const s = parseInt(l, 36);
-          return s < k.length && k[s] ? k[s] : decode(s, a);
-        });
-        return unpacked;
-      } catch (e) {
-        return null;
-      }
+        var match = packed.match(/eval\(function\(p,a,c,k,e,[rd]\)\{.*?\}\s*\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)/);
+        if (!match) return null;
+        var p = match[1], a = parseInt(match[2]), c = parseInt(match[3]), k = match[4].split("|");
+        var base = function(num, b) { var chars = "0123456789abcdefghijklmnopqrstuvwxyz", result = ""; while (num > 0) { result = chars[num % b] + result; num = Math.floor(num / b); } return result || "0"; };
+        return p.replace(/\b\w+\b/g, function(word) { var num = parseInt(word, 36); return num < k.length && k[num] ? k[num] : base(num, a); });
+      } catch (e) { return null; }
     }
-    function resolve(url, signal = null) {
+    function resolve(embedUrl) {
       return __async(this, null, function* () {
         try {
-          const currentUA = getSessionUA();
-          console.log(`[VidHide] TV-Resolving: ${url}`);
-          const urlObj = new URL(url);
-          const domain = urlObj.hostname;
-          const response = yield fetch(url, {
-            signal,
-            headers: {
-              "User-Agent": currentUA,
-              "Referer": `https://${domain}/`
-            }
-          });
-          if (!response.ok)
-            return null;
-          const html = yield response.text();
-          let finalUrl = null;
-          let quality = "1080p";
-          const packedMatch = html.match(/eval\(function\(p,a,c,k,e,[rd]\)[\s\S]*?\.split\('\|'\)[^\)]*\)\)/);
-          if (packedMatch) {
-            const unpacked = unpackVidHide(packedMatch[0]);
-            if (unpacked) {
-              const hlsMatch = unpacked.match(/"hls[24]"\s*:\s*"([^"]+)"/);
-              if (hlsMatch)
-                finalUrl = hlsMatch[1];
-              const labelMatch = unpacked.match(/\{label\s*:\s*"([^"]+)"/i) || unpacked.match(/name\s*:\s*"([^"]+)"/i);
-              if (labelMatch)
-                quality = labelMatch[1].toLowerCase().includes("p") ? labelMatch[1] : labelMatch[1] + "p";
-            }
-          }
-          if (!finalUrl) {
-            const rawMatch = html.match(/"hls[24]"\s*:\s*"([^"]+)"/) || html.match(/file\s*:\s*["']([^"']+)["']/i) || html.match(/["'](https?:\/\/[^"']+?\/stream\/[^"']+?\.m3u8[^"']*?)["']/i);
-            if (rawMatch)
-              finalUrl = rawMatch[1];
-          }
-          if (!finalUrl)
-            return null;
-          if (!finalUrl.startsWith("http"))
-            finalUrl = new URL(url).origin + finalUrl;
-          if (!finalUrl.includes("referer="))
-            finalUrl += (finalUrl.includes("?") ? "&" : "?") + "referer=embed69.org";
-          const reqHeaders = __spreadProps(__spreadValues({}, getStealthHeaders()), {
-            "Referer": url.split("?")[0],
-            "Origin": new URL(url).origin,
-            "X-Requested-With": "XMLHttpRequest",
-            "User-Agent": currentUA
-          });
-          const streamObj = { url: finalUrl, headers: reqHeaders };
-          const validation = yield validateStream(streamObj, signal);
-          const isLive = validation ? validation.verified : true;
-          const streamQuality = validation && validation.quality ? validation.quality : quality;
-          return {
-            url: finalUrl,
-            quality: streamQuality,
-            verified: isLive,
-            isReal: validation ? validation.isReal : false,
-            serverName: "VidHide",
-            headers: reqHeaders
-          };
-        } catch (e) {
-          console.error(`[VidHide] Error: ${e.message}`);
-          return null;
-        }
+          console.log("[VidHide] Resolviendo: " + embedUrl);
+          var resp = yield fetch(embedUrl, { method: "GET", headers: { "User-Agent": UA, "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Referer": "https://embed69.org/" }, redirect: "follow" });
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          var html = yield resp.text();
+          var evalMatch = html.match(/eval\(function\(p,a,c,k,e,[rd]\)[\s\S]*?\.split\('\|'\)[^\)]*\)\)/);
+          if (!evalMatch) { console.log("[VidHide] No se encontró bloque eval"); return null; }
+          var unpacked = unpack(evalMatch[0]);
+          if (!unpacked) { console.log("[VidHide] No se pudo desempacar"); return null; }
+          var hls4Match = unpacked.match(/"hls4"\s*:\s*"([^"]+)"/);
+          var hls2Match = unpacked.match(/"hls2"\s*:\s*"([^"]+)"/);
+          var m3u8Relative = hls4Match ? hls4Match[1] : (hls2Match ? hls2Match[1] : null);
+          if (!m3u8Relative) { console.log("[VidHide] No se encontró hls4/hls2"); return null; }
+          var m3u8Url = m3u8Relative;
+          if (!m3u8Relative.startsWith("http")) { var origin2 = new URL(embedUrl).origin; m3u8Url = origin2 + m3u8Relative; }
+          console.log("[VidHide] URL encontrada: " + m3u8Url.substring(0, 80) + "...");
+          var origin = new URL(embedUrl).origin;
+          return { url: m3u8Url, headers: { "User-Agent": UA, "Referer": origin + "/", "Origin": origin } };
+        } catch (e) { console.log("[VidHide] Error: " + e.message); return null; }
       });
     }
     module2.exports = { resolve };
@@ -1430,7 +1246,7 @@ var { resolve: resolvePlayerCdn } = require_player_cdn();
 var { resolve: resolveGgtz } = require_ggtz();
 var TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 var BASE_URL = "https://xupalace.org";
-var UA = "Mozilla/5.0 (Linux; Android 13; Chromecast) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 var HTML_HEADERS = {
   "User-Agent": UA,
   "Accept": "text/html",
