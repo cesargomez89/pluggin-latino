@@ -78,11 +78,11 @@ var require_ua = __commonJS({
   "src/utils/ua.js"(exports2, module2) {
     var UA_POOL = [
       // Android TV - Chromecast
-      "Mozilla/5.0 (Linux; Android 13; Chromecast) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      // "Mozilla/5.0 (Linux; Android 13; Chromecast) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       // Android TV - Generic TV
-      "Mozilla/5.0 (Linux; Android 11; AOSP; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.85 Safari/537.36",
+      // "Mozilla/5.0 (Linux; Android 11; AOSP; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.85 Safari/537.36",
       // Android TV - Fire TV
-      "Mozilla/5.0 (X11; Linux armv7l) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.187 Safari/537.36",
+      // "Mozilla/5.0 (X11; Linux armv7l) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.187 Safari/537.36",
       // Android Mobile - Samsung
       "Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       // Android Mobile - Pixel
@@ -102,7 +102,7 @@ var require_ua = __commonJS({
 var require_http = __commonJS({
   "src/utils/http.js"(exports2, module2) {
     var { getRandomUA } = require_ua();
-    var DEFAULT_CHROME_UA = "Mozilla/5.0 (Linux; Android 13; Chromecast) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    var DEFAULT_CHROME_UA = "Mozilla/5.0 (Linux; Android 14; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     var sessionUA = null;
     function setSessionUA2(ua) {
       sessionUA = ua;
@@ -161,7 +161,7 @@ var require_http = __commonJS({
     var DEFAULT_UA = getSessionUA();
     var MOBILE_UA = getSessionUA();
     function request(url, options) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         var opt = options || {};
         var currentUA = opt.headers && opt.headers["User-Agent"] ? opt.headers["User-Agent"] : getSessionUA();
         var headers = Object.assign({
@@ -195,13 +195,13 @@ var require_http = __commonJS({
       });
     }
     function fetchHtml2(url, options) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         var res = yield request(url, options);
         return yield res.text();
       });
     }
     function fetchJson2(url, options) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         var res = yield request(url, options);
         return yield res.json();
       });
@@ -285,7 +285,7 @@ var require_m3u8 = __commonJS({
     }
     var VALIDATION_CACHE = /* @__PURE__ */ new Map();
     function validateStream(stream, signal = null) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         if (!stream || !stream.url)
           return stream;
         const { url, headers } = stream;
@@ -588,7 +588,7 @@ var require_engine = __commonJS({
       return server || "Servidor";
     }
     function finalizeStreams2(streams, providerName, mediaTitle) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         if (!Array.isArray(streams) || streams.length === 0)
           return [];
         console.log(`[Engine] PROCESANDO STREAMS - Bitrate Global v7.6.0`);
@@ -603,7 +603,7 @@ var require_engine = __commonJS({
             break;
           }
           const batch = sorted.slice(i, i + CONCURRENCY_LIMIT);
-          const batchResults = yield Promise.all(batch.map((s) => __async(this, null, function* () {
+          const batchResults = yield Promise.all(batch.map((s) => __async(this, null, function*() {
             try {
               if (s.isReal === true)
                 return s;
@@ -685,7 +685,7 @@ var require_voe = __commonJS({
       return output;
     }
     function resolve3(url, signal = null) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           const currentUA = getSessionUA();
           console.log(`[VOE] TV-Resolving: ${url}`);
@@ -809,7 +809,7 @@ var require_hlswish = __commonJS({
       });
     }
     function resolve3(url, signal = null) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           const UA4 = getSessionUA();
           const rawId = url.split("/").pop().replace(/\.html$/, "");
@@ -829,7 +829,7 @@ var require_hlswish = __commonJS({
           const validResult = yield new Promise((resolveRace) => {
             let resolved = false;
             let pending = mirrors.length;
-            mirrors.forEach((mirror) => __async(this, null, function* () {
+            mirrors.forEach((mirror) => __async(this, null, function*() {
               try {
                 const mirrorObj = new URL(mirror);
                 const mirrorOrigin = mirrorObj.origin;
@@ -995,7 +995,7 @@ var require_filemoon = __commonJS({
       return p;
     }
     function resolve3(url, signal = null) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         var _a, _b, _c, _d;
         try {
           const urlObj = new URL(url);
@@ -1109,7 +1109,7 @@ var require_vidhide = __commonJS({
       }
     }
     function resolve3(url, signal = null) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           const currentUA = getSessionUA();
           console.log(`[VidHide] TV-Resolving: ${url}`);
@@ -1183,7 +1183,7 @@ var require_quality = __commonJS({
   "src/resolvers/quality.js"(exports2, module2) {
     var { request, getSessionUA } = require_http();
     function detectQuality(_0) {
-      return __async(this, arguments, function* (url, headers = {}) {
+      return __async(this, arguments, function*(url, headers = {}) {
         try {
           if (!url || !url.includes(".m3u8"))
             return "1080p";
@@ -1236,7 +1236,7 @@ var require_goodstream = __commonJS({
     var { detectQuality } = require_quality();
     var { getSessionUA } = require_http();
     function resolve3(embedUrl) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           const UA4 = getSessionUA();
           console.log(`[GoodStream] Resolviendo: ${embedUrl}`);
@@ -1301,7 +1301,7 @@ var require_fastream = __commonJS({
       return p;
     }
     function detectQuality(_0) {
-      return __async(this, arguments, function* (m3u8Url, headers = {}) {
+      return __async(this, arguments, function*(m3u8Url, headers = {}) {
         try {
           const res = yield fetch(m3u8Url, {
             headers: __spreadValues({ "User-Agent": UA4 }, headers),
@@ -1337,7 +1337,7 @@ var require_fastream = __commonJS({
       });
     }
     function resolve3(url) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         var _a;
         try {
           const res = yield fetch(url, {
@@ -1375,7 +1375,7 @@ var require_vimeos = __commonJS({
   "src/resolvers/vimeos.js"(exports2, module2) {
     var { fetchHtml: fetchHtml2, fetchJson: fetchJson2, getSessionUA } = require_http();
     function resolve3(embedUrl) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         const UA4 = getSessionUA();
         try {
           console.log("[Vimeos] Resolviendo: " + embedUrl);
@@ -1467,7 +1467,7 @@ var require_buzzheavier = __commonJS({
     var axios3 = require("axios");
     var { getStealthHeaders } = require_http();
     function resolve3(embedUrl) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         if (!embedUrl)
           return null;
         try {
@@ -1547,7 +1547,7 @@ __export(okru_exports, {
   resolve: () => resolve
 });
 function resolve(embedUrl) {
-  return __async(this, null, function* () {
+  return __async(this, null, function*() {
     try {
       console.log(`[OkRu] Resolviendo: ${embedUrl}`);
       const { data: raw } = yield import_axios.default.get(embedUrl, {
@@ -1602,7 +1602,7 @@ var require_pixeldrain = __commonJS({
   "src/resolvers/pixeldrain.js"(exports2, module2) {
     var axios3 = require("axios");
     function resolve3(embedUrl) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           console.log("[Pixeldrain] Resolviendo: " + embedUrl);
           const idMatch = embedUrl.match(/\/(u|l|api\/file)\/([a-zA-Z0-9]+)/i);
@@ -1658,7 +1658,7 @@ var require_playmogo = __commonJS({
   "src/resolvers/playmogo.js"(exports2, module2) {
     var { fetchHtml: fetchHtml2, DEFAULT_UA } = require_http();
     function resolve3(url) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           console.log("[Playmogo] Resolving: " + url);
           return {
@@ -1687,7 +1687,7 @@ __export(turbovid_exports, {
   resolve: () => resolve2
 });
 function resolve2(embedUrl) {
-  return __async(this, null, function* () {
+  return __async(this, null, function*() {
     try {
       const { data: html } = yield import_axios2.default.get(embedUrl, {
         headers: {
@@ -1724,7 +1724,7 @@ var require_embedseek = __commonJS({
     var CryptoJS2 = require("crypto-js");
     var { getSessionUA } = require_http();
     function resolve3(url) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           const UA4 = getSessionUA();
           const parsedUrl = new URL(url);
@@ -1830,7 +1830,7 @@ var require_tplayer = __commonJS({
     var axios3 = require("axios");
     var { getStealthHeaders } = require_http();
     function resolve3(embedUrl) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           console.log("[TPlayer] Resolviendo con sesi\xF3n: " + embedUrl);
           const idMatch = embedUrl.match(/\/embed\/([a-zA-Z0-9_-]+)/);
@@ -1910,7 +1910,7 @@ var require_lulustream = __commonJS({
       });
     }
     function resolve3(url) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           const UA4 = getSessionUA();
           const urlObj = new URL(url);
@@ -1974,7 +1974,7 @@ var require_lulustream = __commonJS({
 var require_dropcdn = __commonJS({
   "src/resolvers/dropcdn.js"(exports2, module2) {
     function resolve3(url, signal = null) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           const normalizedUrl = url.toString().replace("/d/", "/").replace("/e/", "/").replace("/embed-", "/");
           const idMatch = normalizedUrl.match(/\/([a-zA-Z0-9]+)$/) || normalizedUrl.match(/\/([a-zA-Z0-9]+)_o\//);
@@ -2077,7 +2077,7 @@ var require_dropcdn = __commonJS({
 var require_vidsrc = __commonJS({
   "src/resolvers/vidsrc.js"(exports2, module2) {
     function resolve3(url, signal = null) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           let embedUrl = url.toString().replace("vidsrc.to", "vidsrc.xyz").replace("vidsrc.pm", "vidsrc.xyz").replace("moviesapi.club/movie", "cdn.moviesapi.to/embed/movie").replace("moviesapi.to/movie", "cdn.moviesapi.to/embed/movie");
           console.log(`[VidSrc] Iniciando Resoluci\xF3n: ${embedUrl}`);
@@ -2170,7 +2170,7 @@ var require_doodstream = __commonJS({
   "src/resolvers/doodstream.js"(exports2, module2) {
     var { getSessionUA } = require_http();
     function resolve3(url, signal = null) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         try {
           const UA4 = getSessionUA();
           console.log(`[DoodStream] Resolviendo: ${url}`);
@@ -2312,7 +2312,7 @@ var require_resolvers = __commonJS({
       return result;
     }
     function resolveEmbed2(url, signal = null) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         if (!url)
           return null;
         const s = url.toLowerCase();
@@ -2418,7 +2418,7 @@ var require_tmdb = __commonJS({
     var TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
     var titleCache = /* @__PURE__ */ new Map();
     function getTmdbTitle2(tmdbId, mediaType, language = "en-US", retries = 2) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         if (!tmdbId)
           return null;
         const cleanId = tmdbId.toString().split(":")[0];
@@ -2456,7 +2456,7 @@ var require_tmdb = __commonJS({
       });
     }
     function getTmdbInfo(tmdbId, mediaType) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         if (!tmdbId)
           return null;
         const cleanId = tmdbId.toString().split(":")[0];
@@ -2486,7 +2486,7 @@ var require_tmdb = __commonJS({
       });
     }
     function getTmdbAliases(tmdbId, mediaType) {
-      return __async(this, null, function* () {
+      return __async(this, null, function*() {
         if (!tmdbId)
           return [];
         const cleanId = tmdbId.toString().split(":")[0];
@@ -2599,7 +2599,7 @@ function extractSvLinks(html) {
   return links;
 }
 function getStreams(tmdbId, mediaType, season, episode, title) {
-  return __async(this, null, function* () {
+  return __async(this, null, function*() {
     var _a, _b;
     try {
       let mediaTitle = title;
@@ -2626,7 +2626,7 @@ function getStreams(tmdbId, mediaType, season, episode, title) {
         return t.includes(normTarget) || normTarget.includes(t.split(" ")[0]);
       }).slice(0, 3);
       const allRawLinks = [];
-      yield Promise.all(validEntries.map((entry) => __async(this, null, function* () {
+      yield Promise.all(validEntries.map((entry) => __async(this, null, function*() {
         var _a2, _b2;
         const url = (_b2 = (_a2 = entry.link) == null ? void 0 : _a2.find((l) => l.rel === "alternate")) == null ? void 0 : _b2.href;
         if (!url)
@@ -2645,7 +2645,7 @@ function getStreams(tmdbId, mediaType, season, episode, title) {
         return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
       });
       const resolutionResults = yield Promise.allSettled(
-        sortedLinks.map((link) => __async(this, null, function* () {
+        sortedLinks.map((link) => __async(this, null, function*() {
           var _a2, _b2;
           const result = yield resolveEmbed(link.url);
           if (result && result.url) {
